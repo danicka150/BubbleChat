@@ -9,29 +9,35 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// Раздаём фронтенд
 app.use(express.static(path.join(__dirname, "public")));
 
-// храним соответствие сокета → ник
+// Сопоставление ник → socket.id
 const users = {};
 
 io.on("connection", (socket) => {
   console.log("User connected");
 
+  // регистрация ника
   socket.on("register", (nick) => {
-    users[nick] = socket.id;
+    if (!nick) return;
     socket.nick = nick;
-    io.emit("users", Object.keys(users)); // обновляем список пользователей
+    users[nick] = socket.id;
+    io.emit("users", Object.keys(users));
   });
 
+  // отправка сообщений
   socket.on("chat message", (data) => {
-    // data: {text, to} — если to задано, отправляем только выбранному
+    // data: { text, to }
     if (data.to) {
       const targetSocketId = users[data.to];
       if (targetSocketId) {
+        // приватное сообщение: отправляем только отправителю и получателю
         socket.emit("chat message", { ...data, private: true });
         io.to(targetSocketId).emit("chat message", { ...data, private: true });
       }
     } else {
+      // общий чат
       io.emit("chat message", { ...data, private: false });
     }
   });
